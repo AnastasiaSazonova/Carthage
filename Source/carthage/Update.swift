@@ -9,27 +9,27 @@
 import CarthageKit
 import Commandant
 import Foundation
-import LlamaKit
+import Result
 import ReactiveCocoa
 
 public struct UpdateCommand: CommandType {
 	public let verb = "update"
 	public let function = "Update and rebuild the project's dependencies"
 
-	public func run(mode: CommandMode) -> Result<()> {
-		return ColdSignal.fromResult(UpdateOptions.evaluate(mode))
-			.map { options -> ColdSignal<()> in
+	public func run(mode: CommandMode) -> Result<(), CommandantError<CarthageError>> {
+		return producerWithOptions(UpdateOptions.evaluate(mode))
+			|> flatMap(.Merge) { options -> SignalProducer<(), CommandError> in
 				return options.loadProject()
-					.map { $0.updateDependencies() }
-					.merge(identity)
-					.then(options.buildSignal)
+					|> flatMap(.Merge) { $0.updateDependencies(shouldCheckout: options.checkoutAfterUpdate) }
+					|> then(options.buildProducer)
+					|> promoteErrors
 			}
-			.merge(identity)
-			.wait()
+			|> waitOnCommand
 	}
 }
 
 public struct UpdateOptions: OptionsType {
+	public let checkoutAfterUpdate: Bool
 	public let buildAfterUpdate: Bool
 	public let configuration: String
 	public let buildPlatform: BuildPlatform
@@ -41,40 +41,42 @@ public struct UpdateOptions: OptionsType {
 		return BuildOptions(configuration: configuration, buildPlatform: buildPlatform, skipCurrent: true, colorOptions: checkoutOptions.colorOptions, verbose: verbose, directoryPath: checkoutOptions.directoryPath)
 	}
 
-	/// If `buildAfterUpdate` is true, this will be a signal representing the
-	/// work necessary to build the project.
+	/// If `checkoutAfterUpdate` and `buildAfterUpdate` are both true, this will
+	/// be a producer representing the work necessary to build the project.
 	///
-	/// Otherwise, this signal will be empty.
-	public var buildSignal: ColdSignal<()> {
-		if buildAfterUpdate {
+	/// Otherwise, this producer will be empty.
+	public var buildProducer: SignalProducer<(), CarthageError> {
+		if checkoutAfterUpdate && buildAfterUpdate {
 			return BuildCommand().buildWithOptions(buildOptions)
 		} else {
-			return .empty()
+			return .empty
 		}
 	}
 
-	public static func create(configuration: String)(buildPlatform: BuildPlatform)(verbose: Bool)(buildAfterUpdate: Bool)(checkoutOptions: CheckoutOptions) -> UpdateOptions {
-		return self(buildAfterUpdate: buildAfterUpdate, configuration: configuration, buildPlatform: buildPlatform, verbose: verbose, checkoutOptions: checkoutOptions)
+	public static func create(configuration: String)(buildPlatform: BuildPlatform)(verbose: Bool)(checkoutAfterUpdate: Bool)(buildAfterUpdate: Bool)(checkoutOptions: CheckoutOptions) -> UpdateOptions {
+		return self(checkoutAfterUpdate: checkoutAfterUpdate, buildAfterUpdate: buildAfterUpdate, configuration: configuration, buildPlatform: buildPlatform, verbose: verbose, checkoutOptions: checkoutOptions)
 	}
 
-	public static func evaluate(m: CommandMode) -> Result<UpdateOptions> {
+	public static func evaluate(m: CommandMode) -> Result<UpdateOptions, CommandantError<CarthageError>> {
 		return create
 			<*> m <| Option(key: "configuration", defaultValue: "Release", usage: "the Xcode configuration to build (ignored if --no-build option is present)")
-			<*> m <| Option(key: "platform", defaultValue: .All, usage: "the platform to build for (ignored if --no-build option is present)")
+			<*> m <| Option(key: "platform", defaultValue: .All, usage: "the platforms to build for (ignored if --no-build option is present)")
 			<*> m <| Option(key: "verbose", defaultValue: false, usage: "print xcodebuild output inline (ignored if --no-build option is present)")
-			<*> m <| Option(key: "build", defaultValue: true, usage: "skip the building of dependencies after updating")
+			<*> m <| Option(key: "checkout", defaultValue: true, usage: "skip the checking out of dependencies after updating")
+			<*> m <| Option(key: "build", defaultValue: true, usage: "skip the building of dependencies after updating (ignored if --no-checkout option is present)")
 			<*> CheckoutOptions.evaluate(m, useBinariesAddendum: " (ignored if --no-build option is present)")
 	}
 
 	/// Attempts to load the project referenced by the options, and configure it
 	/// accordingly.
-	public func loadProject() -> ColdSignal<Project> {
-		return checkoutOptions.loadProject().on(next: { project in
-			// Never check out binaries if we're skipping the build step,
-			// because that means users may need the repository checkout.
-			if !self.buildAfterUpdate {
-				project.useBinaries = false
-			}
-		})
+	public func loadProject() -> SignalProducer<Project, CarthageError> {
+		return checkoutOptions.loadProject()
+			|> on(next: { project in
+				// Never check out binaries if we're skipping the build step,
+				// because that means users may need the repository checkout.
+				if !self.buildAfterUpdate {
+					project.useBinaries = false
+				}
+			})
 	}
 }

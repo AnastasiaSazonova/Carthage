@@ -14,6 +14,27 @@ If you can’t make the change yourself, please open an issue after making sure 
 
 Unless you’re specifically improving something about the command-line experience of Carthage, please make code changes to [CarthageKit](README.md#carthagekit). This framework increases modularity, and allows other tools to integrate with Carthage more easily.
 
+## Get started
+
+After checkout, you can run the following command from the cloned directory, and then open the workspace in Xcode:
+
+```bash
+./script/bootstrap
+```
+
+Then, to install your development copy of Carthage (and any local changes you've made) on your system, and test with your own repos:
+
+```bash
+make install
+```
+
+If you want to go back to the mainline Brew build, just uninstall the dev copy first:
+
+```bash
+sudo make uninstall
+brew install carthage
+```
+
 ## Code style
 
 If you’re interested in contributing code, please have a look at our [style guide](https://github.com/github/swift-style-guide), which we try to match fairly closely.

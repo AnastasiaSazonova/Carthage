@@ -1,4 +1,6 @@
-# <img src="https://cloud.githubusercontent.com/assets/432536/5252404/443d64f4-7952-11e4-9d26-fc5cc664cb61.png" width="36" height="36"> Carthage
+![](Logo/PNG/header.png)
+
+# Carthage [![GitHub license](https://img.shields.io/badge/license-MIT-lightgrey.svg)](https://raw.githubusercontent.com/Carthage/Carthage/master/LICENSE.md) [![GitHub release](https://img.shields.io/github/release/carthage/carthage.svg)](https://github.com/Carthage/Carthage/releases)
 
 Carthage is intended to be the simplest way to add frameworks to your Cocoa application.
 
@@ -60,11 +62,22 @@ Once you have Carthage [installed](#installing-carthage), you can begin adding f
   and add the paths to the frameworks you want to use under “Input Files”, e.g.:
 
   ```
-  $(SRCROOT)/Carthage/Build/iOS/LlamaKit.framework
+  $(SRCROOT)/Carthage/Build/iOS/Box.framework
+  $(SRCROOT)/Carthage/Build/iOS/Result.framework
   $(SRCROOT)/Carthage/Build/iOS/ReactiveCocoa.framework
   ```
 
   This script works around an [App Store submission bug](http://www.openradar.me/radar?id=6409498411401216) triggered by universal binaries.
+
+##### Copying debug symbols for debugging and crash reporting
+
+1. On your application target’s “Build Phases” settings tab, click the “+” icon and choose “New Copy Files Phase”.
+1. Click the “Destination” drop-down menu and select “Products Directory”.
+1. For each framework you’re using, drag and drop its corresponding dSYM file.
+
+With the debug information copied into the built products directory, Xcode will be able to symbolicate the stack trace whenever you stop at a breakpoint. This will also enable you to step through third-party code in the debugger.
+
+When archiving your application for submission to the App Store or TestFlight, Xcode will also copy these files into the dSYMs subdirectory of your application’s `.xcarchive` bundle.
 
 ##### For both platforms
 
@@ -123,6 +136,8 @@ If an important scheme is not built when you run that command, open Xcode and ma
 
 If you encounter build failures in `carthage build --no-skip-current`, try running `xcodebuild -scheme SCHEME -workspace WORKSPACE build` or `xcodebuild -scheme SCHEME -project PROJECT build` (with the actual values) and see if the same failure occurs there. This should hopefully yield enough information to resolve the problem.
 
+If you have multiple versions of the Apple developer tools installed (an Xcode beta, for example), use `xcode-select` to change which version Carthage uses.
+
 If you’re still not able to build your framework with Carthage, please [open an issue](https://github.com/Carthage/Carthage/issues/new) and we’d be happy to help!
 
 ### Tag stable releases
@@ -137,7 +152,14 @@ Carthage can automatically use prebuilt frameworks, instead of building from scr
 
 To offer prebuilt frameworks for a specific tag, the binaries for _all_ supported platforms should be zipped up together into _one_ archive, and that archive should be attached to a published Release corresponding to that tag. The attachment should include `.framework` in its name (e.g., `ReactiveCocoa.framework.zip`), to indicate to Carthage that it contains binaries.
 
-Prerelease or draft Releases will be automatically ignored, even if they correspond to the desired tag.
+You can perform the archiving operation above with the `carthage archive` command as follows:
+
+```sh
+carthage build --no-skip-current
+carthage archive YourFrameworkName
+```    
+
+Draft Releases will be automatically ignored, even if they correspond to the desired tag.
 
 ### Declare your compatibility
 
@@ -160,6 +182,8 @@ If you’re interested in using Carthage as part of another tool, or perhaps ext
 ## License
 
 Carthage is released under the [MIT License](LICENSE.md).
+
+Header backdrop photo is released under the [CC BY-NC-SA 2.0](https://creativecommons.org/licenses/by-nc-sa/2.0/) license. Original photo by [Richard Mortel](https://www.flickr.com/photos/prof_richard/).
 
 [Artifacts]: Documentation/Artifacts.md
 [Cartfile]: Documentation/Artifacts.md#cartfile

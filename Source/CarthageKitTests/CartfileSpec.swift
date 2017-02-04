@@ -8,7 +8,7 @@
 
 import CarthageKit
 import Foundation
-import LlamaKit
+import Result
 import Nimble
 import Quick
 
@@ -16,13 +16,13 @@ class CartfileSpec: QuickSpec {
 	override func spec() {
 		it("should parse a Cartfile") {
 			let testCartfileURL = NSBundle(forClass: self.dynamicType).URLForResource("TestCartfile", withExtension: "")!
-			let testCartfile = NSString(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
+			let testCartfile = String(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
 
 			let result = Cartfile.fromString(testCartfile!)
-			expect(result.error()).to(beNil())
+			expect(result.error).to(beNil())
 
-			let cartfile = result.value()!
-			expect(cartfile.dependencies.count).to(equal(5))
+			let cartfile = result.value!
+			expect(cartfile.dependencies.count).to(equal(7))
 
 			let depReactiveCocoa = cartfile.dependencies[0]
 			expect(depReactiveCocoa.project).to(equal(ProjectIdentifier.GitHub(GitHubRepository(owner: "ReactiveCocoa", name: "ReactiveCocoa"))))
@@ -40,19 +40,27 @@ class CartfileSpec: QuickSpec {
 			expect(depConfigs.project).to(equal(ProjectIdentifier.GitHub(GitHubRepository(owner: "jspahrsummers", name: "xcconfigs"))))
 			expect(depConfigs.version).to(equal(VersionSpecifier.Any))
 
-			let depErrorTranslations = cartfile.dependencies[4]
-			expect(depErrorTranslations.project).to(equal(ProjectIdentifier.Git(GitURL("https://enterprise.local/desktop/git-error-translations.git"))))
+			let depCharts = cartfile.dependencies[4]
+			expect(depCharts.project).to(equal(ProjectIdentifier.GitHub(GitHubRepository(owner: "danielgindi", name: "ios-charts"))))
+			expect(depCharts.version).to(equal(VersionSpecifier.Any))
+
+			let depErrorTranslations2 = cartfile.dependencies[5]
+			expect(depErrorTranslations2.project).to(equal(ProjectIdentifier.GitHub(GitHubRepository(server: .Enterprise(scheme: "https", hostname: "enterprise.local/ghe"), owner: "desktop", name: "git-error-translations"))))
+			expect(depErrorTranslations2.version).to(equal(VersionSpecifier.Any))
+
+			let depErrorTranslations = cartfile.dependencies[6]
+			expect(depErrorTranslations.project).to(equal(ProjectIdentifier.Git(GitURL("https://enterprise.local/desktop/git-error-translations2.git"))))
 			expect(depErrorTranslations.version).to(equal(VersionSpecifier.GitReference("development")))
 		}
 
 		it("should parse a Cartfile.resolved") {
 			let testCartfileURL = NSBundle(forClass: self.dynamicType).URLForResource("TestCartfile", withExtension: "resolved")!
-			let testCartfile = NSString(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
+			let testCartfile = String(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
 
 			let result = ResolvedCartfile.fromString(testCartfile!)
-			expect(result.error()).to(beNil())
+			expect(result.error).to(beNil())
 
-			let resolvedCartfile = result.value()!
+			let resolvedCartfile = result.value!
 			expect(resolvedCartfile.dependencies.count).to(equal(2))
 
 			let depReactiveCocoa = resolvedCartfile.dependencies[0]
@@ -66,12 +74,12 @@ class CartfileSpec: QuickSpec {
 
 		it("should detect duplicate dependencies in a single Cartfile") {
 			let testCartfileURL = NSBundle(forClass: self.dynamicType).URLForResource("DuplicateDependencies/Cartfile", withExtension: "")!
-			let testCartfile = NSString(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
+			let testCartfile = String(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
 
 			let result = Cartfile.fromString(testCartfile!)
-			expect(result.error()).to(beNil())
+			expect(result.error).to(beNil())
 
-			let cartfile = result.value()!
+			let cartfile = result.value!
 			expect(cartfile.dependencies.count).to(equal(11))
 
 			let dupes = cartfile.duplicateProjects().sorted { $0.description < $1.description }
@@ -88,19 +96,19 @@ class CartfileSpec: QuickSpec {
 			let testCartfileURL = NSBundle(forClass: self.dynamicType).URLForResource("DuplicateDependencies/Cartfile", withExtension: "")!
 			let testCartfile2URL = NSBundle(forClass: self.dynamicType).URLForResource("DuplicateDependencies/Cartfile.private", withExtension: "")!
 
-			let testCartfile = NSString(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
-			let testCartfile2 = NSString(contentsOfURL: testCartfile2URL, encoding: NSUTF8StringEncoding, error: nil)
+			let testCartfile = String(contentsOfURL: testCartfileURL, encoding: NSUTF8StringEncoding, error: nil)
+			let testCartfile2 = String(contentsOfURL: testCartfile2URL, encoding: NSUTF8StringEncoding, error: nil)
 
 			let result = Cartfile.fromString(testCartfile!)
-			expect(result.error()).to(beNil())
+			expect(result.error).to(beNil())
 
 			let result2 = Cartfile.fromString(testCartfile2!)
-			expect(result2.error()).to(beNil())
+			expect(result2.error).to(beNil())
 
-			let cartfile = result.value()!
+			let cartfile = result.value!
 			expect(cartfile.dependencies.count).to(equal(11))
 
-			let cartfile2 = result2.value()!
+			let cartfile2 = result2.value!
 			expect(cartfile2.dependencies.count).to(equal(3))
 
 			let dupes = duplicateProjectsInCartfiles(cartfile, cartfile2).sorted { $0.description < $1.description }
